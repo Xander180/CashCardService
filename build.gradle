@@ -21,8 +21,31 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Object-Relational Mapping framework
+	// Makes it easy to implement JDBC based repositories
+	// Deals with enhanced support for JDBC-based data access layers
+	implementation 'org.springframework.data:spring-data-jdbc'
+	// Database management frameworks only work if they have a linked database
+	// H2 - "very fast, open source, JDBC API" SQL database implemented in Java
+	// Works seamlessly with Spring Data JDBC
+	implementation 'com.h2database:h2:'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+test {
+	testLogging {
+		events "passed", "skipped", "failed" //, "standardOut", "standardError"
+
+		showExceptions true
+		exceptionFormat "full"
+		showCauses true
+		showStackTraces true
+
+		// Change to `true` for more verbose test output
+		showStandardStreams = false
+	}
 }

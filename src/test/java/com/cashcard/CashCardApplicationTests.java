@@ -52,4 +52,15 @@ class CashCardApplicationTests {
 		assertThat(response.getBody()).isBlank();
 	}
 
+	@Test
+	void shouldCreateANewCashCard() {
+		// Database will create and manage all unique "CashCard.id" values. No need to provide one
+		CashCard newCashCard = new CashCard(null, 250.00);
+
+		// Similar to "restTemplate.getForEntity", except "newCashCard" data for new "CashCard" must be provided
+		// Expect a "Void" response body as a CashCard does not need to be returned
+		ResponseEntity<Void> createResponse = restTemplate.postForEntity("/cashcards", newCashCard, Void.class);
+		assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
 }
