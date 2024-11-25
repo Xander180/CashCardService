@@ -9,6 +9,8 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.net.URI;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Start Spring Boot application and makes it available for our test to perform it
@@ -60,7 +62,25 @@ class CashCardApplicationTests {
 		// Similar to "restTemplate.getForEntity", except "newCashCard" data for new "CashCard" must be provided
 		// Expect a "Void" response body as a CashCard does not need to be returned
 		ResponseEntity<Void> createResponse = restTemplate.postForEntity("/cashcards", newCashCard, Void.class);
-		assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		// HTTP response status code should be "201 CREATED" if new "CashCard" is created
+		assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+		// When a POST request results in successful creation of a new "CashCard", response should include info for how
+		// to retrieve that resource. A URI in the Response Header named "Location" is supplied
+		URI locationOfNewCashCard = createResponse.getHeaders().getLocation();
+
+		// Use the Location header's info to fetch newly created "CashCard"
+		ResponseEntity<String> getResponse = restTemplate.getForEntity(locationOfNewCashCard, String.class);
+		assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		DocumentContext documentContext = JsonPath.parse(getResponse.getBody());
+		Number id = documentContext.read("$.id");
+		Double amount = documentContext.read("$.amount");
+
+		// Verify that new "CashCard.id" is not null, and that "CashCard.amount" is 250.00
+		assertThat(id).isNotNull();
+		assertThat(amount).isEqualTo(250.00);
 	}
 
 }

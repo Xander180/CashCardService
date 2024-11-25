@@ -1,11 +1,10 @@
 package com.cashcard;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.util.Optional;
 
 // Tell Spring that this class is a "Component" of type "RestController" and capable of handling HTTP requests
@@ -34,5 +33,25 @@ public class CashCardController {
         // If true, repository has found the 'CashCard' and it can be retrieved
         // else, it has not been found
         return cashCardOptional.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // @RequestBody - POST expects a request "body", which contains the data submitted to the API
+    // Spring Web will deserialize the data into a "CashCard"
+    // UriComponentsBuilder - Automatically passed in by being injected from Spring's IoC Container
+    @PostMapping
+    private ResponseEntity<Void> createCashCard(@RequestBody CashCard newCashCardRequest, UriComponentsBuilder ucb) {
+        // Spring Data's CrudRepository provides methods for creating, reading, updating, and deleted data from a data store
+        // Saves a new "CashCard" and returns the saved object with a unique "id" provided by the database
+        CashCard savedCashCard = cashCardRepository.save(newCashCardRequest);
+
+        // Constructs a URI to the newly-created "CashCard"
+        // Caller can use this URI to GET the newly-created "CashCard"
+        URI locationOfNewCashCard = ucb
+                .path("cashcards/{id}")
+                .buildAndExpand(savedCashCard.id())
+                .toUri();
+
+        // Return "201 CREATED" with the correct Location header
+        return ResponseEntity.created(locationOfNewCashCard).build();
     }
 }
