@@ -1,10 +1,15 @@
 package com.cashcard;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 
 // Tell Spring that this class is a "Component" of type "RestController" and capable of handling HTTP requests
@@ -53,5 +58,20 @@ public class CashCardController {
 
         // Return "201 CREATED" with the correct Location header
         return ResponseEntity.created(locationOfNewCashCard).build();
+    }
+
+    @GetMapping
+    private ResponseEntity<List<CashCard>> findAll(Pageable pageable) {
+        Page<CashCard> page = cashCardRepository.findAll(
+                // Java Bean implementation of "Pageable"
+                PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        // Provides default values for the "page", "size", and "sort" parameters
+                        // Spring provides default "page" and "size" values (0 and 20 respectively)
+                        pageable.getSortOr(Sort.by(Sort.Direction.ASC, "amount"))
+                ));
+
+        return ResponseEntity.ok(page.getContent());
     }
 }

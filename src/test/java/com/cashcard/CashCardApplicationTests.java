@@ -2,19 +2,24 @@ package com.cashcard;
 
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import net.minidev.json.JSONArray;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.net.URI;
 
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Start Spring Boot application and makes it available for our test to perform it
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// Causes Spring to start with a clean slate, as if all other tests were not ran
+//@DirtiesContext(classMode = ClassMode.AFTER_EACH_TEST_METHOD)
 class CashCardApplicationTests {
 	// Ask Spring to inject a test helper that will allow HTTP requests to be made in locally running application
 	// @Autowired is best used only in tests
@@ -55,6 +60,7 @@ class CashCardApplicationTests {
 	}
 
 	@Test
+	@DirtiesContext
 	void shouldCreateANewCashCard() {
 		// Database will create and manage all unique "CashCard.id" values. No need to provide one
 		CashCard newCashCard = new CashCard(null, 250.00);
@@ -81,6 +87,62 @@ class CashCardApplicationTests {
 		// Verify that new "CashCard.id" is not null, and that "CashCard.amount" is 250.00
 		assertThat(id).isNotNull();
 		assertThat(amount).isEqualTo(250.00);
+	}
+
+	// Since this is requested the entire list of cards, no additional information is necessary in the request
+	@Test
+	void shouldReturnAllCashCardsWhenListIsRequested() {
+		ResponseEntity<String> response = restTemplate.getForEntity("/cashcards", String.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		DocumentContext documentContext = JsonPath.parse(response.getBody());
+		// Calculates the length of the array
+		int cashCardCount = documentContext.read("$.length()");
+		assertThat(cashCardCount).isEqualTo(3);
+
+		// Retrieves the list of all "id" values returned
+		JSONArray ids = documentContext.read("$..id");
+		assertThat(ids).containsExactlyInAnyOrder(99, 100, 101);
+
+		// Retrieves the list of all "amount" values returned
+		JSONArray amounts = documentContext.read("$..amount");
+		assertThat(amounts).containsExactlyInAnyOrder(123.45, 1.00, 150.00);
+	}
+
+	@Test
+	void shouldReturnAPageOfCashCards() {
+		ResponseEntity<String> response = restTemplate.getForEntity("/cashcards?page=0&size=1", String.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		DocumentContext documentContext = JsonPath.parse(response.getBody());
+		JSONArray page = documentContext.read("$[*]");
+		assertThat(page.size()).isEqualTo(1);
+	}
+
+	@Test
+	void shouldReturnASortedPageOfCashCards() {
+		ResponseEntity<String> response = restTemplate.getForEntity("/cashcards?page=0&size=1&sort=amount,desc", String.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		DocumentContext documentContext = JsonPath.parse(response.getBody());
+		JSONArray read = documentContext.read("$[*]");
+		assertThat(read.size()).isEqualTo(1);
+
+		double amount = documentContext.read("$[0].amount");
+		assertThat(amount).isEqualTo(150.00);
+	}
+
+	@Test
+	void shouldReturnASortedPageOfCashCardsWithNoParametersAndUseDefaultValues() {
+		ResponseEntity<String> response = restTemplate.getForEntity("/cashcards", String.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		DocumentContext documentContext = JsonPath.parse(response.getBody());
+		JSONArray page = documentContext.read("$[*]");
+		assertThat(page.size()).isEqualTo(3);
+
+		JSONArray amounts = documentContext.read("$..amount");
+		assertThat(amounts).containsExactly(1.00, 123.45, 150.00);
 	}
 
 }
