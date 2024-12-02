@@ -11,7 +11,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.security.Principal;
 import java.util.List;
-import java.util.Optional;
 
 // Tell Spring that this class is a "Component" of type "RestController" and capable of handling HTTP requests
 @RestController
@@ -25,22 +24,27 @@ public class CashCardController {
         this.cashCardRepository = cashCardRepository;
     }
 
+    private CashCard findCashCard(Long requestedId, Principal principal) {
+        return cashCardRepository.findByIdAndOwner(requestedId, principal.getName());
+    }
+
     // Tells Spring to route requests to the method only on GET(read) requests that match "cashcards/{requestedId}"
     @GetMapping("/{requestedId}")
     // Handler method - gets called when a request that the method knows how to handle (matching request) is received
     // @PathVariable - Tells Spring how to get the value of the "requestedId" parameter
     // Because parameter matches the {requestedId} text within @GetMapping, Spring assigns(injects) the correct value
     private ResponseEntity<CashCard> findById(@PathVariable Long requestedId, Principal principal) {
-        // Calling 'CrudRepository.findById' which returns an Optional
-        // Might or might not contain the 'CashCard' for which we're searching
         // "principal.getName()" returns the username provided from Basic Auth
-        Optional<CashCard> cashCardOptional = Optional.ofNullable(cashCardRepository
-                .findByIdAndOwner(requestedId, principal.getName()))
-;
+        CashCard cashCard = findCashCard(requestedId, principal);
+
         // Determines if 'findById' did or did not find the 'CashCard' with the supplied 'id'
         // If true, repository has found the 'CashCard' and it can be retrieved
         // else, it has not been found
-        return cashCardOptional.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        if (cashCard != null) {
+            return ResponseEntity.ok(cashCard);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // @RequestBody - POST expects a request "body", which contains the data submitted to the API
@@ -78,5 +82,19 @@ public class CashCardController {
                 ));
 
         return ResponseEntity.ok(page.getContent());
+    }
+
+    // Supports the "PUT" verb and supplies the target "requestId".
+    @PutMapping("/{requestedId}")
+    // @RequestBody - contains the updated "CashCard" data
+    private ResponseEntity<Void> putCashCard(@PathVariable Long requestedId, @RequestBody CashCard cashCardUpdate, Principal principal) {
+        CashCard cashCard = findCashCard(requestedId, principal);
+        if (cashCard != null) {
+            // Build a "CashCard" with the updated values and save it.
+            CashCard updatedCashCard = new CashCard(cashCard.id(), cashCardUpdate.amount(), principal.getName());
+            cashCardRepository.save(updatedCashCard);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 }
