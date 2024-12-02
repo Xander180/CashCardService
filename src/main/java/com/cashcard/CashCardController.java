@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,11 +30,13 @@ public class CashCardController {
     // Handler method - gets called when a request that the method knows how to handle (matching request) is received
     // @PathVariable - Tells Spring how to get the value of the "requestedId" parameter
     // Because parameter matches the {requestedId} text within @GetMapping, Spring assigns(injects) the correct value
-    private ResponseEntity<CashCard> findById(@PathVariable Long requestedId) {
+    private ResponseEntity<CashCard> findById(@PathVariable Long requestedId, Principal principal) {
         // Calling 'CrudRepository.findById' which returns an Optional
         // Might or might not contain the 'CashCard' for which we're searching
-        Optional<CashCard> cashCardOptional = cashCardRepository.findById(requestedId);
-
+        // "principal.getName()" returns the username provided from Basic Auth
+        Optional<CashCard> cashCardOptional = Optional.ofNullable(cashCardRepository
+                .findByIdAndOwner(requestedId, principal.getName()))
+;
         // Determines if 'findById' did or did not find the 'CashCard' with the supplied 'id'
         // If true, repository has found the 'CashCard' and it can be retrieved
         // else, it has not been found
@@ -43,11 +46,13 @@ public class CashCardController {
     // @RequestBody - POST expects a request "body", which contains the data submitted to the API
     // Spring Web will deserialize the data into a "CashCard"
     // UriComponentsBuilder - Automatically passed in by being injected from Spring's IoC Container
+    // "Principal" ensures that the correct "owner" is saved with the new "CashCard"
     @PostMapping
-    private ResponseEntity<Void> createCashCard(@RequestBody CashCard newCashCardRequest, UriComponentsBuilder ucb) {
+    private ResponseEntity<Void> createCashCard(@RequestBody CashCard newCashCardRequest, UriComponentsBuilder ucb, Principal principal) {
+        CashCard cashCardWithOwner = new CashCard(null, newCashCardRequest.amount(), principal.getName());
         // Spring Data's CrudRepository provides methods for creating, reading, updating, and deleted data from a data store
         // Saves a new "CashCard" and returns the saved object with a unique "id" provided by the database
-        CashCard savedCashCard = cashCardRepository.save(newCashCardRequest);
+        CashCard savedCashCard = cashCardRepository.save(cashCardWithOwner);
 
         // Constructs a URI to the newly-created "CashCard"
         // Caller can use this URI to GET the newly-created "CashCard"
@@ -61,8 +66,8 @@ public class CashCardController {
     }
 
     @GetMapping
-    private ResponseEntity<List<CashCard>> findAll(Pageable pageable) {
-        Page<CashCard> page = cashCardRepository.findAll(
+    private ResponseEntity<List<CashCard>> findAll(Pageable pageable, Principal principal) {
+        Page<CashCard> page = cashCardRepository.findByOwner(principal.getName(),
                 // Java Bean implementation of "Pageable"
                 PageRequest.of(
                         pageable.getPageNumber(),

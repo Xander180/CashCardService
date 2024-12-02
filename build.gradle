@@ -30,6 +30,7 @@ dependencies {
 	// H2 - "very fast, open source, JDBC API" SQL database implemented in Java
 	// Works seamlessly with Spring Data JDBC
 	implementation 'com.h2database:h2:'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 }
 
 tasks.named('test') {
